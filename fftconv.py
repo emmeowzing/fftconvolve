@@ -29,10 +29,7 @@ class convolve(object):
 
         self.__rangeKX_ = self.kernel.shape[0]
         self.__rangeKY_ = self.kernel.shape[1]
-
-        diffX = self.__rangeX_ % self.__rangeKX_
-        diffY = self.__rangeY_ % self.__rangeKY_
-
+    
     def spaceConv(self):
         """ normal convolution, O(N^2*n^2). This is usually too slow """
 
@@ -89,6 +86,8 @@ class convolve(object):
             # pad the array now
             self.array = np.pad(self.array, [(left, right), (top, bottom)], \
                 mode='constant', constant_values=0)
+
+            self.__indices_ = 
 
         def divide_and_transform():
             """ take the padded array and divide it up into kernel-sized
