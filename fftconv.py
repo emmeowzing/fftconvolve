@@ -32,7 +32,6 @@ class convolve(object):
 
         diffX = self.__rangeX_ % self.__rangeKX_
         diffY = self.__rangeY_ % self.__rangeKY_
-        print diffX, diffY
 
     def spaceConv(self):
         """ normal convolution, O(N^2*n^2). This is usually too slow """
@@ -69,24 +68,27 @@ class convolve(object):
             """ solve for the divisibility and pad. The biggest problem here
             is ensuring that the partitioning scheme is correct for the overlap
             and add portion of the algorithm. """
-            diffX = (self.__rangeX_ % self.__rangeKX_ + 1)
-            diffY = (self.__rangeY_ % self.__rangeKY_ + 2)
 
+            # solve for the total padding along each axis
+            diffX = (self.__rangeKX_ - \
+                        (self.__rangeX_ - self.__rangeKX_*(\
+                        self.__rangeX_ // self.__rangeKX_)))\
+                        % self.__rangeKX_
+            
+            diffY = (self.__rangeKY_ - \
+                        (self.__rangeY_ - self.__rangeKY_*(\
+                        self.__rangeY_ // self.__rangeKY_)))\
+                        % self.__rangeKY_
 
+            # each side, i.e. left, right, top and bottom
+            right = diffX // 2
+            left = diffX - right
+            bottom = diffY // 2
+            top = diffY - bottom
 
-            right = int(diffX // 2)
-            left = int(diffX - right)
-
-            bottom = int(diffY // 2)
-            top = int(diffY - bottom)
-
-
-            # these 
-            print (self.__rangeX_ + diffX) % self.__rangeKX_
-            print (self.__rangeY_ + diffY) % self.__rangeKY_
-
-            #self.array = np.pad(self.array, [(0, 1), (2, 0)], \
-            #    mode='constant', constant_values=0)
+            # pad the array now
+            self.array = np.pad(self.array, [(left, right), (top, bottom)], \
+                mode='constant', constant_values=0)
 
         def divide_and_transform():
             """ take the padded array and divide it up into kernel-sized
@@ -120,7 +122,7 @@ if __name__ == '__main__':
     image = image.T[0]
 
     kern = kernel.Kernel()
-    kern = kern.Kg2(9, 9, sigma=1.5, muX=0.0, muY=0.0)
+    kern = kern.Kg2(15, 15, sigma=1.5, muX=0.0, muY=0.0)
     kern /= np.sum(kern)        # normalize volume
     plt.imshow(kern, interpolation='none', cmap='gist_heat')
     plt.colorbar()
