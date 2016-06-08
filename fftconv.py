@@ -17,6 +17,7 @@ from tqdm import tqdm
 import kernel
 
 class convolve(object):
+
     """ contains methods to convolve two images with different convolution 
     algorithms """
 
@@ -60,6 +61,11 @@ class convolve(object):
 
     def OaAconvolve(self):
         """ faster convolution algorithm, O(N^2*log(n)). """
+
+        def pad(array, left, right, top, bottom):
+            """ pad an array """
+            return np.pad(array, [(left, right), (top, bottom)], \
+                mode='constant', constant_values=0)
         
         def partition():
             """ solve for the divisibility and pad. The biggest problem here
@@ -83,17 +89,19 @@ class convolve(object):
             bottom = diffY // 2
             top = diffY - bottom
 
-            # pad the array now
-            self.array = np.pad(self.array, [(left, right), (top, bottom)], \
-                mode='constant', constant_values=0)
+            # pad and partition the array now
+            self.array = pad(self.array, left, right, top, bottom)
+            return [[i*self.__rangeKX_, (i + 1)*self.__rangeKX_,\
+                     j*self.__rangeKY_, (j + 1)*self.__rangeKY_] \
+                     for i in xrange(self.array.shape[0] // self.__rangeKX_) \
+                     for j in xrange(self.array.shape[1] // self.__rangeKY_)]
 
-            self.__indices_ = 
-
-        def divide_and_transform():
+        def transform():
             """ take the padded array and divide it up into kernel-sized
             chunks, pad those chunks and transform both the chunks and the
             kernel with the FFT. """
-            self.split = np.split(self.array, self.__rangeX_)
+            self.__transformed_ = fft2(self.array)
+            self.__ktransformed = fft2(self.kernel)
 
         partition()
         divide_and_transform()
