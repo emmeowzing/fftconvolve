@@ -89,10 +89,12 @@ class convolve(object):
             bottom = diffY // 2
             top = diffY - bottom
 
-            # pad and partition the array now
+            # pad the array
             self.array = pad(self.array, left, right, top, bottom)
-            return [[i*self.__rangeKX_, (i + 1)*self.__rangeKX_,\
-                     j*self.__rangeKY_, (j + 1)*self.__rangeKY_] \
+
+            # return a list of tuples to partition the array
+            return [(i*self.__rangeKX_, (i + 1)*self.__rangeKX_,\
+                     j*self.__rangeKY_, (j + 1)*self.__rangeKY_) \
                      for i in xrange(self.array.shape[0] // self.__rangeKX_) \
                      for j in xrange(self.array.shape[1] // self.__rangeKY_)]
 
