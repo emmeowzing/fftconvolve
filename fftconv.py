@@ -62,10 +62,17 @@ class convolve(object):
     def OaAconvolve(self):
         """ faster convolution algorithm, O(N^2*log(n)). """
 
-        def pad(array, left, right, top, bottom):
-            """ pad an array """
-            return np.pad(array, [(left, right), (top, bottom)], \
-                mode='constant', constant_values=0)
+        def pad(array, left, right=None, top=None, bottom=None):
+            """ pad an array with values """
+            if left is not None:
+                return np.pad(array, [(left, left), (left, left)], \
+                    mode='constant', constant_values=0)
+            elif left is not None and top is not None:
+                return np.pad(array, [(left, right), (left, right)], \
+                    mode='constant', constant_values=0)
+            else:
+                return np.pad(array, [(left, right), (top, bottom)], \
+                    mode='constant', constant_values=0)
         
         def partition():
             """ solve for the divisibility and pad. The biggest problem here
@@ -73,13 +80,13 @@ class convolve(object):
             and add portion of the algorithm. """
 
             # solve for the total padding along each axis
-            diffX = (self.__rangeKX_ - \
-                        (self.__rangeX_ - self.__rangeKX_*(\
+            diffX = (self.__rangeKX_ -                      \
+                        (self.__rangeX_ - self.__rangeKX_*( \
                         self.__rangeX_ // self.__rangeKX_)))\
                         % self.__rangeKX_
             
-            diffY = (self.__rangeKY_ - \
-                        (self.__rangeY_ - self.__rangeKY_*(\
+            diffY = (self.__rangeKY_ -                      \
+                        (self.__rangeY_ - self.__rangeKY_*( \
                         self.__rangeY_ // self.__rangeKY_)))\
                         % self.__rangeKY_
 
@@ -91,22 +98,25 @@ class convolve(object):
 
             # pad the array
             self.array = pad(self.array, left, right, top, bottom)
-
+            print self.array.shape
             # return a list of tuples to partition the array
-            return [(i*self.__rangeKX_, (i + 1)*self.__rangeKX_,\
-                     j*self.__rangeKY_, (j + 1)*self.__rangeKY_) \
+            return [(i*self.__rangeKX_, (i + 1)*self.__rangeKX_,             \
+                     j*self.__rangeKY_, (j + 1)*self.__rangeKY_)             \
                      for i in xrange(self.array.shape[0] // self.__rangeKX_) \
                      for j in xrange(self.array.shape[1] // self.__rangeKY_)]
 
-        def transform():
-            """ take the padded array and divide it up into kernel-sized
-            chunks, pad those chunks and transform both the chunks and the
-            kernel with the FFT. """
-            self.__transformed_ = fft2(self.array)
-            self.__ktransformed = fft2(self.kernel)
+        subsets = partition()
 
-        partition()
-        divide_and_transform()
+        padX = self.__rangeKX_ // 2
+        padY = self.__rangeKY_ // 2
+        transformed_kernel = fft2(pad(self.array, padX, padX, padY, padY))
+
+        # perform the convolution step using the FFT
+        for tup in subsets:
+            transformed_image_subset = fft2(pad(self.array[tup], \
+                                            padX, padX, padY, padY))
+
+            
 
     def OaS_FFT(self):
         """ use the FFT and a partitioning scheme to convolve the image and the
@@ -131,7 +141,7 @@ if __name__ == '__main__':
     image = image.T[0]
 
     kern = kernel.Kernel()
-    kern = kern.Kg2(15, 15, sigma=1.5, muX=0.0, muY=0.0)
+    kern = kern.Kg2(3, 3, sigma=1.5, muX=0.0, muY=0.0)
     kern /= np.sum(kern)        # normalize volume
     plt.imshow(kern, interpolation='none', cmap='gist_heat')
     plt.colorbar()
