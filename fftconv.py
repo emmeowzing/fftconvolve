@@ -75,9 +75,7 @@ class convolve(object):
                     mode='constant', constant_values=0)
         
         def partition():
-            """ solve for the divisibility and pad. The biggest problem here
-            is ensuring that the partitioning scheme is correct for the overlap
-            and add portion of the algorithm. """
+            """ solve for the divisibility and pad """
 
             # solve for the total padding along each axis
             diffX = (self.__rangeKX_ -                      \
@@ -104,9 +102,9 @@ class convolve(object):
                      j*self.__rangeKY_, (j + 1)*self.__rangeKY_)             \
                      for i in xrange(self.array.shape[0] // self.__rangeKX_) \
                      for j in xrange(self.array.shape[1] // self.__rangeKY_)]
-
+        
         subsets = partition()
-
+        
         padX = self.__rangeKX_ // 2
         padY = self.__rangeKY_ // 2
         transformed_kernel = fft2(pad(self.kernel, padX, padX, padY, padY))
