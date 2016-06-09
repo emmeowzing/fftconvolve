@@ -109,25 +109,17 @@ class convolve(object):
 
         padX = self.__rangeKX_ // 2
         padY = self.__rangeKY_ // 2
-        transformed_kernel = fft2(pad(self.array, padX, padX, padY, padY))
+        transformed_kernel = fft2(pad(self.kernel, padX, padX, padY, padY))
 
         # perform the convolution step using the FFT
-        for tup in subsets:
-            transformed_image_subset = fft2(pad(self.array[tup], \
-                                            padX, padX, padY, padY))
+        for tup in tqdm(subsets):
+            # transform 
+            transformed_image_subset = \
+                fft2(pad(self.array[tup[0]:tup[1], tup[2]:tup[3]], \
+                     padX, padX, padY, padY))
 
-            
-
-    def OaS_FFT(self):
-        """ use the FFT and a partitioning scheme to convolve the image and the
-        kernel. In total, time complexity is O(N^2*log(n)) """
-
-        def partitioner():
-            """ solve for the best partitions for an image given the image 
-            and kernel dimensions """
-            blocksizeX = -(-self.rangeX**2 // self.kernel.shape[0]**2)
-            blocksizeY = -(-self.rangeYw32**2 // self.kernel.shape[1]**2)
-
+            # multiply the two arrays together and take the IFFT
+            space =  ifft2(transformed_kernel * transformed_image_subset)
 
 if __name__ == '__main__':
     try:
@@ -141,7 +133,7 @@ if __name__ == '__main__':
     image = image.T[0]
 
     kern = kernel.Kernel()
-    kern = kern.Kg2(3, 3, sigma=1.5, muX=0.0, muY=0.0)
+    kern = kern.Kg2(5, 5, sigma=1.5, muX=0.0, muY=0.0)
     kern /= np.sum(kern)        # normalize volume
     plt.imshow(kern, interpolation='none', cmap='gist_heat')
     plt.colorbar()
