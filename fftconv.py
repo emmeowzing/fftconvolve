@@ -10,7 +10,7 @@ this of course, but we may _approach_ it).
 """
 
 import numpy as np
-from numpy.fft import fft2, fftn, ifft2, ifftn
+from numpy.fft import fft2, ifft2
 from PIL import Image
 from tqdm import tqdm
 
@@ -96,28 +96,42 @@ class convolve(object):
 
             # pad the array
             self.array = pad(self.array, left, right, top, bottom)
-            print self.array.shape
+            
             # return a list of tuples to partition the array
-            return [(i*self.__rangeKX_, (i + 1)*self.__rangeKX_,             \
-                     j*self.__rangeKY_, (j + 1)*self.__rangeKY_)             \
-                     for i in xrange(self.array.shape[0] // self.__rangeKX_) \
-                     for j in xrange(self.array.shape[1] // self.__rangeKY_)]
+            return [(i*self.__rangeKX_, (i + 1)*self.__rangeKX_,              \
+                     j*self.__rangeKY_, (j + 1)*self.__rangeKY_)              \
+                     for i in xrange(self.array.shape[0] // self.__rangeKX_)  \
+                     for j in xrange(self.array.shape[1] // self.__rangeKY_)],\
+                     left, right, top, bottom
         
-        subsets = partition()
+        subsets, left, right, top, bottom  = partition()
         
+        # set up OaA method        
         padX = self.__rangeKX_ // 2
         padY = self.__rangeKY_ // 2
+
         transformed_kernel = fft2(pad(self.kernel, padX, padX, padY, padY))
 
-        # perform the convolution step using the FFT
+        # create a blank array of the same size
+        convolved_image = np.zeros([self.array.shape[0]+left+right+2*padX, \
+                                    self.array.shape[1]+bottom+top+2*padY])
+
+        # transform each partition and OaA on the convolved_image
         for tup in tqdm(subsets):
-            # transform 
+            # transform
             transformed_image_subset = \
                 fft2(pad(self.array[tup[0]:tup[1], tup[2]:tup[3]], \
                      padX, padX, padY, padY))
-
+            
             # multiply the two arrays together and take the IFFT
-            space =  ifft2(transformed_kernel * transformed_image_subset)
+            space = np.real(ifft2(transformed_kernel*transformed_image_subset))
+
+            convolved_image[tup[0]:tup[1]+padX,tup[2]-padY:tup[3]+padY]+=\
+                space[0:2*padX + self.__rangeKX_, 0:2*padY + self.__rangeKX_]
+
+        # crop image and get it back, convolved
+        return convolved_image[padX:padX + self.__rangeX_, \
+                               padY:padY + self.__rangeY_]
 
 if __name__ == '__main__':
     try:
@@ -131,7 +145,7 @@ if __name__ == '__main__':
     image = image.T[0]
 
     kern = kernel.Kernel()
-    kern = kern.Kg2(5, 5, sigma=1.5, muX=0.0, muY=0.0)
+    kern = kern.Kg2(7, 7, sigma=1.5, muX=0.0, muY=0.0)
     kern /= np.sum(kern)        # normalize volume
     plt.imshow(kern, interpolation='none', cmap='gist_heat')
     plt.colorbar()
