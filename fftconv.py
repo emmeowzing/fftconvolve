@@ -10,16 +10,17 @@ this of course, but we may _approach_ it).
 """
 
 import numpy as np
-from numpy.fft import fft2, ifft2
+from numpy.fft import fft2 as FFT, ifft2 as IFFT
 from PIL import Image
 from tqdm import tqdm
+
+from time import sleep
 
 import kernel
 
 class convolve(object):
 
-    """ contains methods to convolve two images with different convolution 
-    algorithms """
+    """ contains methods to convolve two images """
 
     def __init__(self, image_array, kernel):
         self.array = image_array
@@ -61,77 +62,65 @@ class convolve(object):
 
     def OaAconvolve(self):
         """ faster convolution algorithm, O(N^2*log(n)). """
-
-        def pad(array, left, right=None, top=None, bottom=None):
-            """ pad an array with values """
-            if left is not None:
-                return np.pad(array, [(left, left), (left, left)], \
-                    mode='constant', constant_values=0)
-            elif left is not None and top is not None:
-                return np.pad(array, [(left, right), (left, right)], \
-                    mode='constant', constant_values=0)
-            else:
-                return np.pad(array, [(left, right), (top, bottom)], \
-                    mode='constant', constant_values=0)
         
-        def partition():
-            """ solve for the divisibility and pad """
-
-            # solve for the total padding along each axis
-            diffX = (self.__rangeKX_ -                      \
-                        (self.__rangeX_ - self.__rangeKX_*( \
-                        self.__rangeX_ // self.__rangeKX_)))\
-                        % self.__rangeKX_
-            
-            diffY = (self.__rangeKY_ -                      \
-                        (self.__rangeY_ - self.__rangeKY_*( \
-                        self.__rangeY_ // self.__rangeKY_)))\
-                        % self.__rangeKY_
-
-            # each side, i.e. left, right, top and bottom
-            right = diffX // 2
-            left = diffX - right
-            bottom = diffY // 2
-            top = diffY - bottom
-
-            # pad the array
-            self.array = pad(self.array, left, right, top, bottom)
-            
-            # return a list of tuples to partition the array
-            return [(i*self.__rangeKX_, (i + 1)*self.__rangeKX_,              \
-                     j*self.__rangeKY_, (j + 1)*self.__rangeKY_)              \
-                     for i in xrange(self.array.shape[0] // self.__rangeKX_)  \
-                     for j in xrange(self.array.shape[1] // self.__rangeKY_)],\
-                     left, right, top, bottom
+        # solve for the total padding along each axis
+        diffX = (self.__rangeKX_ - self.__rangeX_ + self.__rangeKX_*(   \
+                    self.__rangeX_ // self.__rangeKX_)) % self.__rangeKX_
         
-        subsets, left, right, top, bottom  = partition()
-        
-        # set up OaA method        
+        diffY = (self.__rangeKY_ - self.__rangeY_ + self.__rangeKY_*(   \
+                    self.__rangeY_ // self.__rangeKY_)) % self.__rangeKY_
+
+        # padding on each side, i.e. left, right, top and bottom, centered
+        # as well as possible
+        right = diffX // 2
+        left = diffX - right
+        bottom = diffY // 2
+        top = diffY - bottom
+
+        # pad the array [(top, bottom), (left, right)]
+        self.array = np.pad(self.array, [(top, bottom), (left, right)], \
+                mode='constant', constant_values=0)
+
+        # a list of tuples to partition the array
+        subsets = [(i*self.__rangeKX_, (i + 1)*self.__rangeKX_,         \
+                 j*self.__rangeKY_, (j + 1)*self.__rangeKY_)            \
+                 for i in xrange(self.array.shape[0] // self.__rangeKX_)\
+                 for j in xrange(self.array.shape[1] // self.__rangeKY_)]
+
+        # padding for individual blocks in the subsets list
         padX = self.__rangeKX_ // 2
         padY = self.__rangeKY_ // 2
 
-        transformed_kernel = fft2(pad(self.kernel, padX, padX, padY, padY))
+        self.kernel = np.pad(self.kernel, [(padY, padY), (padX, padX)], \
+                    mode='constant', constant_values=0)
 
-        # create a blank array of the same size
-        convolved_image = np.zeros([self.array.shape[0]+left+right+2*padX, \
-                                    self.array.shape[1]+bottom+top+2*padY])
+        transformed_kernel = FFT(self.kernel)
+        
+        # create a blank array of the same size to lay them down
+        convolved_image = np.zeros([self.array.shape[0] + 2*padX, \
+                                    self.array.shape[1] + 2*padY])
 
         # transform each partition and OaA on the convolved_image
         for tup in tqdm(subsets):
-            # transform
-            transformed_image_subset = \
-                fft2(pad(self.array[tup[0]:tup[1], tup[2]:tup[3]], \
-                     padX, padX, padY, padY))
-            
-            # multiply the two arrays together and take the IFFT
-            space = np.real(ifft2(transformed_kernel*transformed_image_subset))
+            # slice and pad the array subset
+            subset = np.pad(self.array[tup[0]:tup[1], tup[2]:tup[3]], \
+                            [(padY, padY), (padX, padX)], \
+                            mode='constant', constant_values=0)
 
-            convolved_image[tup[0]:tup[1]+padX,tup[2]-padY:tup[3]+padY]+=\
-                space[0:2*padX + self.__rangeKX_, 0:2*padY + self.__rangeKX_]
+            transformed_subset = FFT(subset)
+
+            # multiply the two arrays entrywise and take the IFFT. np.real()
+            # is used because some residual/negligible imaginary terms are 
+            # left over after the IFFT.
+            space = np.real(IFFT(transformed_kernel*transformed_subset))
+
+            # overlap with indices and add them together to build the image
+            convolved_image[tup[0]:tup[1] + 2*padX,tup[2]:tup[3] + 2*padY] += space
 
         # crop image and get it back, convolved
-        return convolved_image[padX:padX + self.__rangeX_, \
-                               padY:padY + self.__rangeY_]
+        return convolved_image[padX + left:padX + left + self.__rangeX_,\
+                               padY + bottom:padY + bottom + self.__rangeY_]
+
 
 if __name__ == '__main__':
     try:
@@ -139,18 +128,25 @@ if __name__ == '__main__':
     except ImportError:
         import matplotlib.pyplot as plt
 
-    image = np.array(\
-        Image.open('/home/brandon/Pictures/lune_2010-09-29_06-09-07-s1.jpg'))
+    image = np.array(Image.open('/home/brandon/Pictures/Portal_Companion_Cube.jpg'))
 
-    image = image.T[0]
+    image = np.rot90(np.rot90(np.rot90(image.T[0])))
 
+    """
+    plt.imshow(image, interpolation='none', cmap='gray')
+    plt.show()
+    """
+
+    
     kern = kernel.Kernel()
-    kern = kern.Kg2(7, 7, sigma=1.5, muX=0.0, muY=0.0)
+    kern = kern.Kg2(7, 7, sigma=5.75, muX=0.0, muY=0.0)
     kern /= np.sum(kern)        # normalize volume
-    plt.imshow(kern, interpolation='none', cmap='gist_heat')
-    plt.colorbar()
+
+    plt.imshow(np.real(IFFT(FFT(kern)*FFT(image[:kern.shape[0], :kern.shape[1]]))), \
+        interpolation='none', cmap='gray')
     plt.show()
 
+    #conv = convolve(image[:2*kern.shape[0],:5*kern.shape[1]], kern)
     conv = convolve(image, kern)
 
     plt.imshow(conv.OaAconvolve(), interpolation='none', cmap='gray')
