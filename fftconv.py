@@ -16,16 +16,13 @@ from tqdm import trange, tqdm
 
 from time import sleep
 
-import kernel
+import _kernel
 
 __author__ = "Brandon Doyle"
 __email__ = "bjd2385@aperiodicity.com"
 
-
 class convolve(object):
-
     """ contains methods to convolve two images """
-
     def __init__(self, image_array, kernel):
         self.array = image_array
         self.kernel = kernel
