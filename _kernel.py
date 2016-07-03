@@ -19,7 +19,7 @@ class Kernel(object):
         for i in xrange(X):
             for j in xrange(Y):
                 kernel[i][j] = integrate.dblquad(lambda x, y: \
-                                partials.g2([x + float(i) - (X-1.0)/2.0, \
+                                _partials.g2([x + float(i) - (X-1.0)/2.0, \
                                 y + float(j) - (Y-1.0)/2.0], theta), \
                                 -0.5, 0.5, lambda y: -0.5, lambda y: 0.5)[0]
 
@@ -47,7 +47,7 @@ class Kernel(object):
         for i in xrange(X):
             for j in xrange(Y):
                 kernel[i][j] = integrate.dblquad(lambda x, y: \
-                                partials.m2([x+ float(i) - (X-1.0)/2.0, \
+                                _partials.m2([x+ float(i) - (X-1.0)/2.0, \
                                 y + float(j) - (Y-1.0)/2.0], theta), \
                                 -0.5, 0.5, lambda y: -0.5, lambda y: 0.5)[0]
 

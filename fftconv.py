@@ -136,16 +136,16 @@ if __name__ == '__main__':
     except ImportError:
         import matplotlib.pyplot as plt
 
-    image = np.array(Image.open('/home/brandon/Pictures/Portal_Companion_Cube.jpg'))
+    image = np.array(Image.open('Nature.jpg'))
 
     image = np.rot90(np.rot90(np.rot90(image.T[0])))
 
-    kern = kernel.Kernel()
+    kern = _kernel.Kernel()
     kern = kern.Kg2(7, 7, sigma=5.75, muX=0.0, muY=0.0)
     kern /= np.sum(kern)        # normalize volume
 
     #conv = convolve(image[:2*kern.shape[0],:5*kern.shape[1]], kern)
     conv = convolve(image, kern)
 
-    plt.imshow(conv.OaAconvolve(), interpolation='none', cmap='gray')
+    plt.imshow(conv.spaceConv(), interpolation='none', cmap='gray')
     plt.show()
