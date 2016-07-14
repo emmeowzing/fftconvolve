@@ -31,7 +31,6 @@ class Kernel(object):
         else:
             maximum = np.max(kernel)
             minimum = np.min(kernel)
-            print maximum, minimum
             return map(lambda arr: (arr-minimum)/(maximum-minimum), kernel)
 
     @staticmethod

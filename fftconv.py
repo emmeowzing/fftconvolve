@@ -51,7 +51,7 @@ class convolve(object):
             self.__offsetY_ = 0
 
         # to be returned instead of the originals
-        self.__arr_ = np.zeros([self.__rangeX_, self.__rangeY_])\
+        self.__arr_ = np.zeros([self.__rangeX_, self.__rangeY_])
 
     def spaceConv(self):
         """ normal convolution, O(N^2*n^2). This is usually too slow """
@@ -99,6 +99,22 @@ class convolve(object):
                            :self.__rangeX_ - self.__offsetX_,\
                            self.__offsetY_\
                            :self.__rangeY_ - self.__offsetY_]
+
+    @staticmethod
+    def InvertKernel(kernel):
+        """ Invert a kernel after zero-padding """
+
+        X, Y = kernel.shape
+        # thanks to http://stackoverflow.com/a/38384551/3928184!
+        new_kernel = np.full_like(kernel, 0)
+
+        for i in xrange(X):
+            for j in xrange(Y):
+                n_i = (i + X // 2) % X
+                n_j = (j + Y // 2) % Y
+                new_kernel[n_i, n_j] = kernel[i, j]
+
+        return new_kernel
 
     def OAconv(self):
         """ faster convolution algorithm, O(N^2*log(n)). """
@@ -154,8 +170,18 @@ class convolve(object):
                         [(padY, padY), (padX, padX)], \
                       mode='constant', constant_values=0)
 
+        # thanks to http://stackoverflow.com/a/38384551/3928184!
+        X, Y = kernel.shape
+        new_kernel = np.full_like(kernel, 0)
+
+        for i in xrange(X):
+            for j in xrange(Y):
+                n_i = (i + X // 2) % X
+                n_j = (j + Y // 2) % Y
+                new_kernel[n_i, n_j] = kernel[i, j]
+
         # We only need to do this once
-        trans_kernel = FFT(kernel)
+        trans_kernel = FFT(new_kernel)
 
         # transform each partition and OA on conv_image
         for tup in tqdm(subsets):
@@ -169,8 +195,7 @@ class convolve(object):
             trans_subset = FFT(subset)
 
             # multiply the two arrays entrywise
-            subset = trans_kernel * trans_subset
-            space = iFFT(subset).real
+            space = iFFT(trans_subset * trans_kernel).real
 
             # overlap with indices and add them together
             self.__arr_[tup[0]:tup[1] + 2 * padX, \
@@ -184,54 +209,8 @@ class convolve(object):
                            :padY + bottom + self.__rangeY_ \
                               - self.__offsetY_]
 
-    def OSconv(self):
-        """ Convolve an image using OS """
-        from numpy.fft import fft2 as FFT, ifft2 as iFFT
-        pass
-
     def builtin(self):
         """ Convolves using SciPy's convolution function - extremely
         fast """
         from scipy.ndimage.filters import convolve
         return convolve(self.array, self.kernel)
-
-
-if __name__ == '__main__':
-    try:
-        import pyplot as plt
-    except ImportError:
-        import matplotlib.pyplot as plt
-
-    image = np.array(Image.open('spider.jpg'))
-
-    image = np.rot90(np.rot90(np.rot90(image.T[0])))
-
-    times = []
-
-    #for i in range(3, 21, 2):
-    kern = _kernel.Kernel()
-    kern = kern.Kg2(11, 11, sigma=2.5, muX=0.0, muY=0.0)
-    kern /= np.sum(kern)        # normalize volume
-
-    conv = convolve(image, kern)
-    #
-    #    # Time the result of increasing kernel size
-    #    _start = time()
-    convolved = conv.OAconv()
-    #convolved = conv.builtin()
-    #    _end = time()
-    #    times.append(_end - _start)
-
-    #x = np.array(range(3, 21, 2))
-    #plt.plot(range(3, 21, 2), times)
-    #plt.title('Kernel Size vs. spaceConv time', fontsize=12)
-    #plt.xlabel('Kernel Size (px)', fontsize=12)
-    #plt.ylabel('Time (s)', fontsize=12)
-    #plt.xticks(x, x)
-    #plt.show()
-
-    #conv = convolve(image[:2*kern.shape[0],:5*kern.shape[1]], kern)
-
-    plt.imshow(convolved, interpolation='none', cmap='gray')
-    plt.show()
-    #imsave('spider2', convolved, format='png')
