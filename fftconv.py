@@ -17,8 +17,10 @@ from time import time, sleep
 
 import _kernel
 
+
 __author__ = "Brandon Doyle"
 __email__ = "bjd2385@aperiodicity.com"
+
 
 class convolve(object):
     """ contains methods to convolve two images """
