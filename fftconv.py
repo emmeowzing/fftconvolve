@@ -1,21 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-""" Simple implementation of the fastest FFT convolution algorithm, as well as
-several others.
-
-O(N^2*log(n)) time, where N^2 is the size of the image (we can never get below
-this of course, but we may _approach_ it).
+""" Quick implementation of several convolution algorithms to compare times 
 """
 
 import numpy as np
+import _kernel
 from tqdm import trange, tqdm
 from PIL import Image
 from scipy.misc import imsave
-
 from time import time, sleep
-
-import _kernel
 
 
 __author__ = "Brandon Doyle"
@@ -166,8 +160,7 @@ class convolve(object):
         # transform each partition and OA on conv_image
         for tup in tqdm(subsets):
             # slice and pad the array subset
-            subset = self.array[tup[0]:tup[1], \
-                                tup[2]:tup[3]]
+            subset = self.array[tup[0]:tup[1], tup[2]:tup[3]]
 
             subset = np.lib.pad(subset,      \
                 [(padY, padY), (padX, padX)],\
@@ -176,7 +169,8 @@ class convolve(object):
             trans_subset = FFT(subset)
 
             # multiply the two arrays entrywise
-            space = iFFT(trans_kernel * trans_subset).real
+            subset = trans_kernel * trans_subset
+            space = iFFT(subset).real
 
             # overlap with indices and add them together
             self.__arr_[tup[0]:tup[1] + 2 * padX, \
@@ -196,13 +190,10 @@ class convolve(object):
         pass
 
     def builtin(self):
-        """ Convolves using SciPy's convolution function """
+        """ Convolves using SciPy's convolution function - extremely
+        fast """
         from scipy.ndimage.filters import convolve
         return convolve(self.array, self.kernel)
-
-    def compare(self):
-        """ Compare the 3 methods above with different sized arrays """
-        pass
 
 
 if __name__ == '__main__':
@@ -219,7 +210,7 @@ if __name__ == '__main__':
 
     #for i in range(3, 21, 2):
     kern = _kernel.Kernel()
-    kern = kern.Kg2(11, 11, sigma=6.5, muX=0.0, muY=0.0)
+    kern = kern.Kg2(11, 11, sigma=2.5, muX=0.0, muY=0.0)
     kern /= np.sum(kern)        # normalize volume
 
     conv = convolve(image, kern)
@@ -227,6 +218,7 @@ if __name__ == '__main__':
     #    # Time the result of increasing kernel size
     #    _start = time()
     convolved = conv.OAconv()
+    #convolved = conv.builtin()
     #    _end = time()
     #    times.append(_end - _start)
 
