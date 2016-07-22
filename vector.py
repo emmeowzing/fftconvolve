@@ -127,3 +127,24 @@ class entrylist(list):
 
     def __gt__(self, other):
         return not self.__le__(other)
+
+    def __mod__(self, other):
+        if (isinstance(other, (int, float))):
+            return entrylist(i % other for i in self)
+        elif (isinstance(other, (list, entrylist))):
+            if (other.__len__() != self.__len__()):
+                warn('len(other) != len(self): Possible data loss')
+            return entrylist(i % j for i, j in zip(self, other))
+        else:
+            raise TypeError
+
+    def __divmod__(self, other):
+        if (isinstance(other, (int, float))):
+            return entrylist((i / other, i % other) for i in self)
+        elif (isinstance(other, (list, entrylist))):
+            if (other.__len__() != self.__len__()):
+                warn('len(other) != len(self): Possible data loss')
+            return entrylist((i / j, i % j) \
+                for i, j in zip(self, other))
+        else:
+            raise TypeError
