@@ -17,18 +17,18 @@ def clock(*axes):
     
     So that whilst iterating over NumPy arrays, we might try
     
-    >>> from clock import clock
     >>> from numpy.random import randn
+    >>> from clock import clock
     >>> X = randn(2, 3)
     >>> for i in clock(*(X.shape)):
-    ...     print i
+    ...     print X[i]
     ... 
-    (0, 0)
-    (0, 1)
-    (0, 2)
-    (1, 0)
-    (1, 1)
-    (1, 2)
+    0.557724928504
+    0.65652304739
+    0.538328247903
+    -0.722400267643
+    1.3994330752
+    0.142266875233
     """
     iteration = 0
     dimension = len(axes)
