@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import numpy as np
-
 def clock(*axes):
     """ A quick generator for working with iterations over N-dimensional
     arrays. Example usage:
