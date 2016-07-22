@@ -13,8 +13,6 @@ class entrylist(list):
     Example usage:
 
     >>> from numpy.random import randn
-    >>> entrylist(randn(5,6).shape)
-    [5, 6]
     >>> X = entrylist(randn(5,6).shape)
     >>> X
     [5, 6]
