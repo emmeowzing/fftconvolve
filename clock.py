@@ -34,7 +34,7 @@ def clock(*axes):
     dimension = len(axes)
     maxiterations = __prod_(axes)
     
-    if not (dimension >= 1):
+    if (dimension < 1):
         raise ValueError('Must submit valid number of axes')
     
     while (iteration < maxiterations):
