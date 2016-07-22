@@ -146,8 +146,8 @@ class convolve(object):
         divY = self.array.shape[1] / float(self.__rangeKY_)
 
         # Let's just make sure...
-        if not (divX % 1.0 == 0.0 or divY % 1.0 == 0.0):
-            raise ValueError('Image not partitionable (?)')
+        if (divX % 1.0 or divY % 1.0):
+            raise ValueError('Image not partitionable')
         else:
             divX = int(divX)
             divY = int(divY)
