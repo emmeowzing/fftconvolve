@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-""" Quick implementation of several convolution algorithms to compare times 
+""" Quick implementation of several convolution algorithms to compare 
+times 
 """
 
 import numpy as np
@@ -23,15 +24,8 @@ class convolve(object):
         self.kernel = kernel
 
         # Store these values as they will be accessed a _lot_
-        self.__rangeX_ = self.array.shape[0]
-        self.__rangeY_ = self.array.shape[1]
         self.__rangeKX_ = self.kernel.shape[0]
         self.__rangeKY_ = self.kernel.shape[1]
-
-        # Ensure the kernel is suitable to convolve the image
-        if (self.__rangeKX_ >= self.__rangeX_ or \
-            self.__rangeKY_ >= self.__rangeY_):
-            raise ValueError('Must submit suitably-sized arrays')
 
         if (back_same_size):
             # pad array for convolution
@@ -47,6 +41,8 @@ class convolve(object):
             self.__rangeX_ = self.array.shape[0]
             self.__rangeY_ = self.array.shape[1]
         else:
+            self.__rangeX_ = self.array.shape[0]
+            self.__rangeY_ = self.array.shape[1]
             self.__offsetX_ = 0
             self.__offsetY_ = 0
 
@@ -100,9 +96,9 @@ class convolve(object):
                            self.__offsetY_\
                            :self.__rangeY_ - self.__offsetY_]
 
-    @staticmethod
+    @classmethod
     def InvertKernel(kernel):
-        """ Invert a kernel after zero-padding """
+        """ Invert a kernel for an example """
 
         X, Y = kernel.shape
         # thanks to http://stackoverflow.com/a/38384551/3928184!
@@ -167,7 +163,7 @@ class convolve(object):
                            mode='constant', constant_values=0)
 
         kernel = np.pad(self.kernel,                  \
-                        [(padY, padY), (padX, padX)], \
+                        [(padX, padX), (padY, padY)], \
                       mode='constant', constant_values=0)
 
         # thanks to http://stackoverflow.com/a/38384551/3928184!
@@ -181,7 +177,7 @@ class convolve(object):
                 new_kernel[n_i, n_j] = kernel[i, j]
 
         # We only need to do this once
-        trans_kernel = FFT(new_kernel)
+        transf_kernel = FFT(new_kernel)
 
         # transform each partition and OA on conv_image
         for tup in tqdm(subsets):
@@ -192,10 +188,10 @@ class convolve(object):
                 [(padY, padY), (padX, padX)],\
                 mode='constant', constant_values=0)
 
-            trans_subset = FFT(subset)
+            transf_subset = FFT(subset)
 
             # multiply the two arrays entrywise
-            space = iFFT(trans_subset * trans_kernel).real
+            space = iFFT(transf_subset * transf_kernel).real
 
             # overlap with indices and add them together
             self.__arr_[tup[0]:tup[1] + 2 * padX, \
@@ -214,3 +210,56 @@ class convolve(object):
         fast """
         from scipy.ndimage.filters import convolve
         return convolve(self.array, self.kernel)
+
+
+if __name__ == '__main__':
+    try:
+        import pyplot as plt
+    except ImportError:
+        import matplotlib.pyplot as plt
+
+    image = np.array(Image.open(\
+        '/home/brandon/Documents/fftconvolve/Nature.jpg'))
+
+    image = np.rot90(np.flipud(np.fliplr(image.T[0])))
+
+    '''
+    times = []
+    for i in range(4, 50, 2):
+        kern = _kernel.Kernel()
+        kern = kern.Kg2(i, i, sigma=1.5, muX=0.0, muY=0.0)
+        kern /= np.sum(kern)        # normalize volume
+
+        conv = convolve(image, kern)
+    
+        # Time the result of increasing kernel size
+        _start = time()
+        convolved = conv.OAconv()
+        #   convolved = conv.builtin()
+        _end = time()
+        times.append(_end - _start)
+
+    x = np.array(range(4, 50, 2))
+    plt.plot(range(4, 50, 2), times)
+    plt.title('Kernel Size vs. OAconv time', fontsize=12)
+    plt.xlabel('Kernel Size (px)', fontsize=12)
+    plt.ylabel('Time (s)', fontsize=12)
+    plt.xticks(x, x)
+    plt.show()
+    '''
+
+    kern = _kernel.Kernel()
+    kern = kern.Kg2(10, 10, sigma=4.25, muX=0.0, muY=0.0)
+    kern /= np.sum(kern)        # Normalize volume
+
+    conv = convolve(image, kern)
+    convolved = conv.OAconv()
+
+    print image.shape, convolved.shape
+
+    #conv = convolve(image[:2*kern.shape[0],:5*kern.shape[1]], kern)
+
+    plt.imshow(convolved, interpolation='none', cmap='gray')
+    plt.show()
+    
+    imsave('spider_oa1.png', convolved, format='png')
