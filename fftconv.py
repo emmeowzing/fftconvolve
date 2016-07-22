@@ -2,12 +2,15 @@
 # -*- coding: utf-8 -*-
 
 """ Quick implementation of several convolution algorithms to compare 
-times 
+times.
 """
 
 import numpy as np
 import _kernel
 from tqdm import trange, tqdm
+from numpy.fft import fft2 as FFT, ifft2 as iFFT
+from scipy.ndimage.filters import convolve
+
 from PIL import Image
 from scipy.misc import imsave
 from time import time, sleep
@@ -19,32 +22,25 @@ __email__ = "bjd2385@aperiodicity.com"
 
 class convolve(object):
     """ contains methods to convolve two images """
-    def __init__(self, image_array, kernel, back_same_size=True):
+    def __init__(self, image_array, kernel):
         self.array = image_array
         self.kernel = kernel
 
         # Store these values as they will be accessed a _lot_
         self.__rangeKX_ = self.kernel.shape[0]
         self.__rangeKY_ = self.kernel.shape[1]
+        
+        # pad array for convolution
+        self.__offsetX_ = self.__rangeKX_ // 2
+        self.__offsetY_ = self.__rangeKY_ // 2
+     
+        self.array = np.lib.pad(self.array,      \
+            [(self.__offsetX_, self.__offsetX_), \
+             (self.__offsetY_, self.__offsetY_)],\
+             mode='constant', constant_values=0)
 
-        if (back_same_size):
-            # pad array for convolution
-            self.__offsetX_ = self.__rangeKX_ // 2
-            self.__offsetY_ = self.__rangeKY_ // 2
-         
-            self.array = np.lib.pad(self.array,      \
-                [(self.__offsetY_, self.__offsetY_), \
-                 (self.__offsetX_, self.__offsetX_)],\
-                 mode='constant', constant_values=0)
-
-            # Update these
-            self.__rangeX_ = self.array.shape[0]
-            self.__rangeY_ = self.array.shape[1]
-        else:
-            self.__rangeX_ = self.array.shape[0]
-            self.__rangeY_ = self.array.shape[1]
-            self.__offsetX_ = 0
-            self.__offsetY_ = 0
+        self.__rangeX_ = self.array.shape[0]
+        self.__rangeY_ = self.array.shape[1]
 
         # to be returned instead of the originals
         self.__arr_ = np.zeros([self.__rangeX_, self.__rangeY_])
@@ -53,8 +49,10 @@ class convolve(object):
         """ normal convolution, O(N^2*n^2). This is usually too slow """
 
         # this is the O(N^2) part of this algorithm
-        for i in trange(self.__rangeX_):
-            for j in xrange(self.__rangeY_):
+        for i in trange(self.__offsetX_, \
+                self.__rangeX_ - self.__rangeKX_):
+            for j in xrange(self.__offsetY_, \
+                    self.__rangeY_ - self.__rangeKY_):
                 # Now the O(n^2) portion
                 total = 0.0
                 for k in xrange(self.__rangeKX_):
@@ -72,7 +70,8 @@ class convolve(object):
                            :self.__rangeY_ - self.__offsetY_]
 
     def spaceConvDot(self):
-        """ Exactly the same as the former method """
+        """ Exactly the same as the former method, just contains a 
+        nested function so the dot product appears more obvious """
 
         def dot(ind, jnd):
             """ perform a simple 'dot product' between the 2 
@@ -87,8 +86,10 @@ class convolve(object):
             return total
      
         # this is the O(N^2) part of the algorithm
-        for i in trange(self.__rangeX_):
-            for j in xrange(self.__rangeY_):
+        for i in trange(self.__offsetX_, \
+                self.__rangeX_ - self.__rangeKX_):
+            for j in xrange(self.__offsetY_, \
+                    self.__rangeY_ - self.__rangeKY_):
                 self.__arr_[i][j] = dot(i, j)
      
         return self.__arr_[self.__offsetX_\
@@ -112,9 +113,13 @@ class convolve(object):
 
         return new_kernel
 
+    @staticmethod
+    def Interpolate(kernel, unit=1):
+        """ Interpolate a kernel a single unit smaller or larger """
+
+
     def OAconv(self):
         """ faster convolution algorithm, O(N^2*log(n)). """
-        from numpy.fft import fft2 as FFT, ifft2 as iFFT
 
         # solve for the total padding along each axis
         diffX = (self.__rangeKX_ - self.__rangeX_ +  \
@@ -167,6 +172,7 @@ class convolve(object):
                       mode='constant', constant_values=0)
 
         # thanks to http://stackoverflow.com/a/38384551/3928184!
+        # Invert the kernel
         X, Y = kernel.shape
         new_kernel = np.full_like(kernel, 0)
 
@@ -213,43 +219,65 @@ class convolve(object):
 
 
 if __name__ == '__main__':
-    try:
-        import pyplot as plt
-    except ImportError:
-        import matplotlib.pyplot as plt
+    import matplotlib.pyplot as plt
 
     image = np.array(Image.open(\
-        '/home/brandon/Documents/fftconvolve/Nature.jpg'))
+        '/home/brandon/Documents/fftconvolve/spider.jpg'))
 
     image = np.rot90(np.flipud(np.fliplr(image.T[0])))
 
-    '''
-    times = []
-    for i in range(4, 50, 2):
+    
+    times1 = []
+    times2 = []
+    Domain = range(3, 27, 2)
+    for i in range(3, 27, 2):
         kern = _kernel.Kernel()
         kern = kern.Kg2(i, i, sigma=1.5, muX=0.0, muY=0.0)
         kern /= np.sum(kern)        # normalize volume
 
         conv = convolve(image, kern)
     
-        # Time the result of increasing kernel size
-        _start = time()
-        convolved = conv.OAconv()
+        # spaceConv first
+        print "Starting spaceConv"
+        _start1 = time()
+        convolved = conv.spaceConvDot()
         #   convolved = conv.builtin()
-        _end = time()
-        times.append(_end - _start)
+        _end1 = time()
+        
+        # builtin second
+        print "Starting builtin"
+        _start2 = time()
+        convolved = conv.builtin()
+        _end2 = time()
 
-    x = np.array(range(4, 50, 2))
-    plt.plot(range(4, 50, 2), times)
-    plt.title('Kernel Size vs. OAconv time', fontsize=12)
+        times1.append([_end1 - _start1, _end2 - _start2])
+
+        # OAconv third
+        kern = _kernel.Kernel()
+        kern = kern.Kg2(i+1, i+1, sigma=1.5, muX=0.0, muY=0.0)
+        kern /= np.sum(kern)
+        conv = convolve(image, kern)
+        print "Starting OAconv"
+        _start3 = time()
+        convolved = conv.OAconv()
+        _end3 = time()
+
+        times2.append(_end3 - _start3)
+
+    x = np.array(Domain)
+    plt.plot(Domain, times1)
+    plt.plot(range(4, 28, 2), times2)
+
+    plt.title("Kernel Size vs. spaceConv, OAconv and SciPy's time",\
+        fontsize=12)
     plt.xlabel('Kernel Size (px)', fontsize=12)
     plt.ylabel('Time (s)', fontsize=12)
-    plt.xticks(x, x)
+    plt.xticks(range(3, 29), range(3, 29))
     plt.show()
+    
     '''
-
     kern = _kernel.Kernel()
-    kern = kern.Kg2(10, 10, sigma=4.25, muX=0.0, muY=0.0)
+    kern = kern.Kg2(20, 20, sigma=6, muX=0.0, muY=0.0)
     kern /= np.sum(kern)        # Normalize volume
 
     conv = convolve(image, kern)
@@ -263,3 +291,4 @@ if __name__ == '__main__':
     plt.show()
     
     imsave('spider_oa1.png', convolved, format='png')
+    '''
