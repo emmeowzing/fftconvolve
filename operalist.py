@@ -39,51 +39,67 @@ class operalist(list):
     def __floordiv__(self, other):
         if (isinstance(other, (int, float))):
             return operalist(i // other for i in self)
+        
         elif (isinstance(other, (list, operalist))):
             if (other.__len__() != self.__len__()):
                 warn('len(other) != len(self): Possible data loss')
+            
             return operalist(i // j for i, j in zip(self, other))
+        
         else:
             raise TypeError
 
     def __div__(self, other):
         if (isinstance(other, (int, float))):
             return operalist(i / other for i in self)
+        
         elif (isinstance(other, (list, operalist))):
             if (other.__len__() != self.__len__()):
                 warn('len(other) != len(self): Possible data loss')
+        
             return operalist(i / j for i, j in zip(self, other))
+        
         else:
             raise TypeError
 
     def __mul__(self, other):
         if (isinstance(other, int)):
             return operalist(i * other for i in self)
+        
         elif (isinstance(other, (list, operalist))):
+        
             # multiply entry-wise
             if (other.__len__() != self.__len__()):
                 warn('len(other) != len(self): Possible data loss')
+        
             return operalist(i * j for i, j in zip(self, other))
+        
         else:
             raise TypeError
 
     def __pow__(self, other):
         if (isinstance(other, (int, float))):
             return operalist(i ** other for i in self)
+        
         elif (isinstance(other, (list, operalist))):
             if (other.__len__() != self.__len__()):
                 warn('len(other) != len(self): Possible data loss')
+        
             return operalist(i ** j for i, j in zip(self, other))
+        
         else:
             raise TypeError
 
     def __add__(self, other):
         if (isinstance(other, (int, float))):
             return operalist(i + other for i in self)
+        
         elif (isinstance(other, (list, operalist))):
             if (other.__len__() != self.__len__()):
                 warn('len(other) != len(self): Possible data loss')
+        
             return operalist(i + j for i, j in zip(self, other))
+        
         else:
             raise TypeError
 
@@ -93,30 +109,39 @@ class operalist(list):
     def __le__(self, other):
         if (isinstance(other, (int, float))):
             return all(operalist(i <= other for i in self))
+
         elif (isinstance(other, (list, operalist))):
             if (other.__len__() != self.__len__()):
                 warn('len(other) != len(self): Possible data loss')
+            
             return all(operalist(i <= j for i, j in zip(self, other)))
+        
         else:
             raise TypeError
 
     def __ge__(self, other):
         if (isinstance(other, (int, float))):
             return all(operalist(i >= other for i in self))
+        
         elif (isinstance(other, (list, operalist))):
             if (other.__len__() != self.__len__()):
                 warn('len(other) != len(self): Possible data loss')
+        
             return all(operalist(i >= j for i, j in zip(self, other)))
+        
         else:
             raise TypeError
 
     def __eq__(self, other):
         if (isinstance(other, (int, float))):
             return all(operalist(i == other for i in self))
+        
         elif (isinstance(other, (list, operalist))):
             if (other.__len__() != self.__len__()):
                 warn('len(other) != len(self): Possible data loss')
+        
             return all(operalist(i == j for i, j in zip(self, other)))
+        
         else:
             raise TypeError
 
@@ -132,21 +157,27 @@ class operalist(list):
     def __mod__(self, other):
         if (isinstance(other, (int, float))):
             return operalist(i % other for i in self)
+        
         elif (isinstance(other, (list, operalist))):
             if (other.__len__() != self.__len__()):
                 warn('len(other) != len(self): Possible data loss')
+            
             return operalist(i % j for i, j in zip(self, other))
+
         else:
             raise TypeError
 
     def __divmod__(self, other):
         if (isinstance(other, (int, float))):
             return operalist((i / other, i % other) for i in self)
+
         elif (isinstance(other, (list, operalist))):
             if (other.__len__() != self.__len__()):
                 warn('len(other) != len(self): Possible data loss')
+
             return operalist(operalist([i / j, i % j]) \
                 for i, j in zip(self, other))
+
         else:
             raise TypeError
 
