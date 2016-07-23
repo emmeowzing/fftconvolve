@@ -2,18 +2,19 @@
 # -*- coding: utf-8 -*-
 
 """ Quick implementation of several convolution algorithms to compare 
-times.
+times. I don't think there's anything incredibly new in this code, I've
+just written it to better-understand Python, OOP, convolution
+algorithms and higher-dimensional programming.
 """
 
 import numpy as np
 import _kernel
+from operalist import operalist
+from clock import clock
 from tqdm import trange, tqdm
 from numpy.fft import fft2 as FFT, ifft2 as iFFT
-from scipy.ndimage.filters import convolve
-
-from PIL import Image
-from scipy.misc import imsave
-from time import time, sleep
+from numpy.fft import rfft2 as rFFT, irfft2 as irFFT
+from numpy.fft import fftn as FFTN, ifftn as iFFTN
 
 
 __author__ = "Brandon Doyle"
@@ -26,27 +27,83 @@ class convolve(object):
         self.array = image_array
         self.kernel = kernel
 
-        # Store these values as they will be accessed a _lot_
-        self.__rangeKX_ = self.kernel.shape[0]
-        self.__rangeKY_ = self.kernel.shape[1]
-        
-        # pad array for convolution
-        self.__offsetX_ = self.__rangeKX_ // 2
-        self.__offsetY_ = self.__rangeKY_ // 2
-     
-        self.array = np.lib.pad(self.array,      \
-            [(self.__offsetX_, self.__offsetX_), \
-             (self.__offsetY_, self.__offsetY_)],\
-             mode='constant', constant_values=0)
+        self.dimA = self.dim(image_array)
+        self.dimK = self.dim(kernel)
 
-        self.__rangeX_ = self.array.shape[0]
-        self.__rangeY_ = self.array.shape[1]
+        if (self.dimA < self.dimK):
+            raise IndexError("""Cannot convolve an image with
+                a higher dimensional image kernel"""\
+                .replace('                ', ''))
 
-        # to be returned instead of the originals
-        self.__arr_ = np.zeros([self.__rangeX_, self.__rangeY_])
+        elif (self.dimA == self.dimK):
+            # This is the easiest route
+            self.__rangeKX_ = self.kernel.shape[0]
+            self.__rangeKY_ = self.kernel.shape[1]
+            
+            # pad array for convolution
+            self.__offsetX_ = self.__rangeKX_ // 2
+            self.__offsetY_ = self.__rangeKY_ // 2
+         
+            self.array = np.lib.pad(self.array,      \
+                [(self.__offsetX_, self.__offsetX_), \
+                 (self.__offsetY_, self.__offsetY_)],\
+                 mode='constant', constant_values=0)
 
-    def spaceConv(self):
+            self.__rangeX_ = self.array.shape[0]
+            self.__rangeY_ = self.array.shape[1]
+
+            # to be returned instead of the originals
+            self.__arr_ = np.zeros([self.__rangeX_, self.__rangeY_])
+
+        else:
+            # Convolving an image with a kernel of lesser dimension
+            self.__rangesA_ = operalist(self.array.shape)
+            self.__rangesK_ = operalist(self.kernel.shape)
+
+            # pad array for convolution using operalists
+            self.__offsets_ = operalist(self.__rangesK_) // 2
+
+            if not (all(self.__rangesK_[i] % self.__rangesK_[0] \
+                for i in xrange(len(self.__rangesK_)))):
+                # Means the kernel is not a hypercube
+                self.__cube_ = 0
+            else:
+                self.__cube_ = 1
+                
+            self.array = np.lib.pad(self.array, )
+                
+            self.__arr_ = np.zeros(list(self.__rangesA_))
+
+    ## The following two methods are kind of useless, but it's true
+
+    def __eq__(self, other):
+        if isinstance(other, convolve):
+            if (self.array == other.array and \
+                self.kernel == other.kernel):
+                return True
+            else:
+                return False
+        else:
+            raise ConvolveTypeError
+
+    def __ne__(self, other):
+        if (isinstance(other, convolve)):
+            return not self.__eq__(other)
+        else:
+            raise ConvolveTypeError
+
+    ##
+
+    @staticmethod
+    def dim(array):
+        """ Get the dimension of a NumPy array - this is just useful """
+        return len(array.shape)
+
+    def spaceConv2(self):
         """ normal convolution, O(N^2*n^2). This is usually too slow """
+        if (self.dimA != 2 or self.dimK != 2):
+            raise ConvolveDimError(\
+                'Use the higher dimensional analogue')
 
         # this is the O(N^2) part of this algorithm
         for i in trange(self.__offsetX_, \
@@ -69,9 +126,13 @@ class convolve(object):
                            self.__offsetY_\
                            :self.__rangeY_ - self.__offsetY_]
 
-    def spaceConvDot(self):
+    def spaceConvDot2(self):
         """ Exactly the same as the former method, just contains a 
         nested function so the dot product appears more obvious """
+
+        if (self.dimA != 2 or self.dimK != 2):
+            raise ConvolveDimError(\
+                'Use the higher dimensional analogue')
 
         def dot(ind, jnd):
             """ perform a simple 'dot product' between the 2 
@@ -97,9 +158,12 @@ class convolve(object):
                            self.__offsetY_\
                            :self.__rangeY_ - self.__offsetY_]
 
-    @classmethod
-    def InvertKernel(kernel):
+    @staticmethod
+    def InvertKernel2(kernel):
         """ Invert a kernel for an example """
+        if (self.dim(kernel) > 2):
+            raise ConvolveDimError(\
+                'Use the higher dimensional analogue')
 
         X, Y = kernel.shape
         # thanks to http://stackoverflow.com/a/38384551/3928184!
@@ -113,13 +177,37 @@ class convolve(object):
 
         return new_kernel
 
+    @classmethod
+    def InvertKernelN(kernel):
+        """ Same as InvertKernel2, but for N-dimensional arrays """
+        new_kernel = np.full_like(kernel, 0)
+
+        for i in clock(*(kernel.shape)):
+
+
     @staticmethod
-    def Interpolate(kernel, unit=1):
-        """ Interpolate a kernel a single unit smaller or larger """
+    def InterpK(kernel, unit=1):
+        """ Interpolate a kernel a single unit smaller or larger.
+        A destructive process as the inverse won't yield the same
+        array. """
 
 
-    def OAconv(self):
+
+    def FFTconv2(self):
+        """ FFT convolution, not quite OAconv, but its all in NumPy """
+        if (self.dimA != 2 or self.dimK != 2):
+            raise ConvolveDimError(\
+                'Use the higher dimensional analogue')
+
+        return irFFT(rFFT(self.image) * rFFT(self.kernel, \
+                                             self.image.shape))
+
+    def OAconv2(self):
         """ faster convolution algorithm, O(N^2*log(n)). """
+
+        if (self.dim(self.kernel) % 2):
+            self.InterpK(self.kernel, unit=1)
+        
 
         # solve for the total padding along each axis
         diffX = (self.__rangeKX_ - self.__rangeX_ +  \
@@ -186,7 +274,7 @@ class convolve(object):
         transf_kernel = FFT(new_kernel)
 
         # transform each partition and OA on conv_image
-        for tup in tqdm(subsets):
+        for tup in subsets:
             # slice and pad the array subset
             subset = self.array[tup[0]:tup[1], tup[2]:tup[3]]
 
@@ -211,8 +299,69 @@ class convolve(object):
                            :padY + bottom + self.__rangeY_ \
                               - self.__offsetY_]
 
-    def builtin(self):
-        """ Convolves using SciPy's convolution function - extremely
-        fast """
-        from scipy.ndimage.filters import convolve
-        return convolve(self.array, self.kernel)
+    ## methods that will convolve arrays and kernels of arbitrary dim
+
+    def spaceConvNdot(self):
+        """ Same as spaceConv2, but for N-dim arrays. This method is
+        so slow for larger arrays of high dimension that it's almost 
+        unusable """
+        
+        def dot(*inds):
+            """ Perform a higher dimensional hypercube dot product """
+            for i in clock(*(self.__rangesK_)):
+                pass
+
+        for i in clock():
+            pass
+
+    def OAconvN(self):
+        """ Same as OAconv2, but for N-dim arrays """
+        
+        # ∵ this is an operalist, we can do the same in _one_ line
+        diffs = (self.__rangesK_ - self.__rangesA_ +  \
+                 self.__rangesK_ * (self.__rangesA_ //\
+                 self.__rangesK_)) % self.__rangesK_
+
+        # padding is abstracted away by operalists
+        diffsL = diffs // 2
+        diffsR = diffs - diffsL
+        
+        # pad the array
+        self.array = np.lib.pad(self.array,                 \
+                            ((left, right), (top, bottom)), \
+                           mode='constant', constant_values=0)
+
+        divX = self.array.shape[0] / float(self.__rangeKX_)
+        divY = self.array.shape[1] / float(self.__rangeKY_)
+
+        # Let's just make sure...
+        if (divX % 1.0 or divY % 1.0):
+            raise ValueError('Image not partitionable')
+        else:
+            divX = int(divX)
+            divY = int(divY)
+
+        # a list of tuples to partition the array by
+        subsets = [(i*self.__rangeKX_, (i + 1)*self.__rangeKX_,\
+                    j*self.__rangeKY_, (j + 1)*self.__rangeKY_)\
+                        for i in xrange(divX)                  \
+                        for j in xrange(divY)]
+
+        # padding for individual blocks in the subsets list
+        padX = self.__rangeKX_ // 2
+        padY = self.__rangeKY_ // 2
+
+        self.__arr_ = np.lib.pad(self.__arr_,              \
+                            ((left + padX, right + padX),  \
+                             (top + padY, bottom + padY)), \
+                           mode='constant', constant_values=0)
+
+        kernel = np.pad(self.kernel,                  \
+                        [(padX, padX), (padY, padY)], \
+                      mode='constant', constant_values=0)
+
+class ConvolveTypeError(Exception):
+    pass
+
+class ConvolveDimError(Exception):
+    pass
