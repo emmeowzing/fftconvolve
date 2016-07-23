@@ -54,6 +54,6 @@ def clock(*axes):
 
 def __prod_(vec):
     prod = 1
-    for i in xrange(len(vec)):
-        prod *= vec[i]
+    for i in vec:
+        prod *= i
     return prod
