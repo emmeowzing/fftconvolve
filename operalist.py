@@ -7,7 +7,7 @@ is probably way over the top, but it's simple and it works """
 
 from warnings import warn
 
-class entrylist(list):
+class operalist(list):
     """ An iterable with useful attributes from lists and entrylists.
 
     Example usage:
@@ -144,7 +144,7 @@ class entrylist(list):
         elif (isinstance(other, (list, entrylist))):
             if (other.__len__() != self.__len__()):
                 warn('len(other) != len(self): Possible data loss')
-            return entrylist((i / j, i % j) \
+            return entrylist(entrylist([i / j, i % j]) \
                 for i, j in zip(self, other))
         else:
             raise TypeError
