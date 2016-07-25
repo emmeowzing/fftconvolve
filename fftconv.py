@@ -157,12 +157,13 @@ class convolve(object):
 
         return new_kernel
 
+    '''
     @staticmethod
     def InterpK(kernel, unit=1):
         """ Interpolate a kernel a single unit smaller or larger.
         A destructive process as the inverse won't yield the same
         array. """
-
+    '''
 
 
     def FFTconv2(self):
