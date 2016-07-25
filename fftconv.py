@@ -55,6 +55,7 @@ class convolve(object):
             # to be returned instead of the originals
             self.__arr_ = np.zeros([self.__rangeX_, self.__rangeY_])
 
+        '''
         else:
             # Convolving an image with a kernel of lesser dimension
             self.__rangesA_ = operalist(self.array.shape)
@@ -73,26 +74,7 @@ class convolve(object):
             self.array = np.lib.pad(self.array, )
                 
             self.__arr_ = np.zeros(list(self.__rangesA_))
-
-    ## The following two methods are kind of useless, but it's true
-
-    def __eq__(self, other):
-        if isinstance(other, convolve):
-            if (self.array == other.array and \
-                self.kernel == other.kernel):
-                return True
-            else:
-                return False
-        else:
-            raise ConvolveTypeError
-
-    def __ne__(self, other):
-        if (isinstance(other, convolve)):
-            return not self.__eq__(other)
-        else:
-            raise ConvolveTypeError
-
-    ##
+        '''
 
     @staticmethod
     def dim(array):
@@ -176,14 +158,6 @@ class convolve(object):
                 new_kernel[n_i, n_j] = kernel[i, j]
 
         return new_kernel
-
-    @classmethod
-    def InvertKernelN(kernel):
-        """ Same as InvertKernel2, but for N-dimensional arrays """
-        new_kernel = np.full_like(kernel, 0)
-
-        for i in clock(*(kernel.shape)):
-
 
     @staticmethod
     def InterpK(kernel, unit=1):
@@ -298,67 +272,6 @@ class convolve(object):
                            self.__offsetY_ + padY + bottom \
                            :padY + bottom + self.__rangeY_ \
                               - self.__offsetY_]
-
-    ## methods that will convolve arrays and kernels of arbitrary dim
-
-    def spaceConvNdot(self):
-        """ Same as spaceConv2, but for N-dim arrays. This method is
-        so slow for larger arrays of high dimension that it's almost 
-        unusable """
-        
-        def dot(*inds):
-            """ Perform a higher dimensional hypercube dot product """
-            for i in clock(*(self.__rangesK_)):
-                pass
-
-        for i in clock():
-            pass
-
-    def OAconvN(self):
-        """ Same as OAconv2, but for N-dim arrays """
-        
-        # ∵ this is an operalist, we can do the same in _one_ line
-        diffs = (self.__rangesK_ - self.__rangesA_ +  \
-                 self.__rangesK_ * (self.__rangesA_ //\
-                 self.__rangesK_)) % self.__rangesK_
-
-        # padding is abstracted away by operalists
-        diffsL = diffs // 2
-        diffsR = diffs - diffsL
-        
-        # pad the array
-        self.array = np.lib.pad(self.array,                 \
-                            ((left, right), (top, bottom)), \
-                           mode='constant', constant_values=0)
-
-        divX = self.array.shape[0] / float(self.__rangeKX_)
-        divY = self.array.shape[1] / float(self.__rangeKY_)
-
-        # Let's just make sure...
-        if (divX % 1.0 or divY % 1.0):
-            raise ValueError('Image not partitionable')
-        else:
-            divX = int(divX)
-            divY = int(divY)
-
-        # a list of tuples to partition the array by
-        subsets = [(i*self.__rangeKX_, (i + 1)*self.__rangeKX_,\
-                    j*self.__rangeKY_, (j + 1)*self.__rangeKY_)\
-                        for i in xrange(divX)                  \
-                        for j in xrange(divY)]
-
-        # padding for individual blocks in the subsets list
-        padX = self.__rangeKX_ // 2
-        padY = self.__rangeKY_ // 2
-
-        self.__arr_ = np.lib.pad(self.__arr_,              \
-                            ((left + padX, right + padX),  \
-                             (top + padY, bottom + padY)), \
-                           mode='constant', constant_values=0)
-
-        kernel = np.pad(self.kernel,                  \
-                        [(padX, padX), (padY, padY)], \
-                      mode='constant', constant_values=0)
 
 class ConvolveTypeError(Exception):
     pass
