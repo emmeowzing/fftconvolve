@@ -4,13 +4,11 @@
 """ Quick implementation of several convolution algorithms to compare 
 times. I don't think there's anything incredibly new in this code, I've
 just written it to better-understand Python, OOP, convolution
-algorithms and higher-dimensional programming.
+algorithms and higher-dimensional programming (eventually).
 """
 
 import numpy as np
 import _kernel
-from operalist import operalist
-from clock import clock
 from tqdm import trange, tqdm
 from numpy.fft import fft2 as FFT, ifft2 as iFFT
 from numpy.fft import rfft2 as rFFT, irfft2 as irFFT
