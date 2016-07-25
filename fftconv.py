@@ -8,7 +8,6 @@ algorithms and higher-dimensional programming (eventually).
 """
 
 import numpy as np
-import _kernel
 from tqdm import trange, tqdm
 from numpy.fft import fft2 as FFT, ifft2 as iFFT
 from numpy.fft import rfft2 as rFFT, irfft2 as irFFT
@@ -247,7 +246,7 @@ class convolve(object):
         transf_kernel = FFT(new_kernel)
 
         # transform each partition and OA on conv_image
-        for tup in subsets:
+        for tup in tqdm(subsets):
             # slice and pad the array subset
             subset = self.array[tup[0]:tup[1], tup[2]:tup[3]]
 
