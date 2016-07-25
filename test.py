@@ -17,7 +17,7 @@ def main():
 	kern /= np.sum(kern)	# normalize volume
 
 	## open an image
-	image = imread('spider.jpg').T[0]
+	image = np.rot90(np.rot90(np.rot90(imread('spider.jpg').T[0])))
 
 	## Convolve using some method
 	conv = convolve(image, kern)
