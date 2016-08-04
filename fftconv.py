@@ -13,6 +13,8 @@ from numpy.fft import fft2 as FFT, ifft2 as iFFT
 from numpy.fft import rfft2 as rFFT, irfft2 as irFFT
 from numpy.fft import fftn as FFTN, ifftn as iFFTN
 
+from numba import jit
+
 
 __author__ = "Brandon Doyle"
 __email__ = "bjd2385@aperiodicity.com"
@@ -171,8 +173,13 @@ class convolve(object):
             raise ConvolveDimError(\
                 'Use the higher dimensional analogue')
 
-        return irFFT(rFFT(self.image) * rFFT(self.kernel, \
-                                             self.image.shape))
+        self.__arr_ = irFFT(rFFT(self.array) * rFFT(self.kernel, \
+                                         self.array.shape))
+
+        return self.__arr_[self.__offsetX_\
+                           :self.__rangeX_ - self.__offsetX_,\
+                           self.__offsetY_\
+                           :self.__rangeY_ - self.__offsetY_]
 
     def OAconv2(self):
         """ faster convolution algorithm, O(N^2*log(n)). """
