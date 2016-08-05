@@ -58,10 +58,7 @@ def dotNumpy(subarray, kernel):
 
 def main():
     import matplotlib.pyplot as plt
-    times1 = []
-    times2 = []
-    times3 = []
-    labels = []
+    times1, times2, times3, labels = [], [], [], []
 
     number = 20
     
