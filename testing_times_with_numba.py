@@ -51,8 +51,8 @@ def dot(subarray, kernel):
 
 @checkarrays
 def dotNumpy(subarray, kernel):
-    """ Perform the matrix dot product with NumPy functions (probably
-    the fastest implementation)
+    """ Perform the matrix dot product with NumPy functions 
+    (surprisingly not as fast as dotJit)
     """
     return np.sum(subarray * kernel)        # entrywise
 
