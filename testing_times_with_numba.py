@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-""" Test the effects of Numba upon array dotting """
+""" Test Numba against NumPy and pure Python for dotting arrays """
 
 
 from numba import jit
@@ -58,25 +58,33 @@ def dotNumpy(subarray, kernel):
 
 def main():
     import matplotlib.pyplot as plt
-    times1, times2, times3, labels = [], [], [], []
+    times1, times2, times3, labels = ([],) * 4
 
-    number = 20
-    
-    for i in xrange(1, number):
-        numbers = ceil(log(10 ** i) / log(1.005)), \
-                  ceil(log(10 ** i) / log(1.005))
+    number = 15
+    stepsize = 1
+
+    for i in xrange(stepsize, number, stepsize):
+        numbers = ceil(log(10 ** i) / log(1.3)), \
+                  ceil(log(10 ** i) / log(1.3))
         X = randn(*numbers)
         Y = randn(*numbers)
         labels.append(str(log10(numbers[0]))[:4])
 
-        print \
-    "Created X and Y for {0}, {1} numbers".format(i, numbers)
+        if (i == 0):
+            # Pre-compile dotJit
+            dotJit(X, Y)
+
+        print "{0}, {1}".format(i, numbers)
         
-        _start = time()
-        dotJit(X, Y)
-        _end = time()
-        times1.append(_end - _start)
-        print "Time for jit {0}: {1}".format(i, _end - _start)
+        # For jit take the average of 100 runs
+        emptyTime = 0.0
+        for j in xrange(100):
+            _start = time()
+            dotJit(X, Y)
+            _end = time()
+            emptyTime += _end - _start
+        times1.append(emptyTime / 1e2)
+        print "Time for jit {0}: {1}".format(i, emptyTime / 1e2)
 
         _start = time()
         dot(X, Y)
@@ -84,11 +92,14 @@ def main():
         times2.append(_end - _start)
         print "Time for dot {0}: {1}".format(i, _end - _start)
 
-        _start = time()
-        dotNumpy(X, Y)
-        _end = time()
-        times3.append(_end - _start)
-        print "Time for NumPy {0}: {1}".format(i, _end - _start)
+        emptyTime = 0.0
+        for j in xrange(100):
+            _start = time()
+            dotNumpy(X, Y)
+            _end = time()
+            emptyTime += _end - _start
+        times3.append(emptyTime / 1e2)
+        print "Time for NumPy {0}: {1}".format(i, emptyTime / 1e2)
         print
 
     times1 = [log(timed) for timed in times1]
@@ -99,15 +110,15 @@ def main():
     plt.plot(times2, label='Pure')
     plt.plot(times3, label='NumPy')
 
-    plt.xlim([-0.5, len(times1) - 0.5])
+    plt.xlim([-0.5, len(times1) - 1.5])
 
     # modify xticks to represent data
-    plt.xticks(range(0, number - 1), labels)
+    plt.xticks(range(0, number // stepsize), labels, rotation='vertical')
 
     plt.legend(fontsize=12, loc='upper left')
     plt.xlabel(r'Array Size ($\log_{10}\left(A\right)/2$)', fontsize=12)
     plt.ylabel(r'Time ($\log_{10}(s)$)', fontsize=12)
-    plt.title('Comparing Numba to Pure Python', fontsize=12)
+    plt.title('Comparing Numba and NumPy to Pure Python', fontsize=12)
     plt.show()
 
 if __name__ == '__main__':

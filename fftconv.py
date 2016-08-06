@@ -4,7 +4,7 @@
 """ Quick implementation of several convolution algorithms to compare 
 times. I don't think there's anything incredibly new in this code, I've
 just written it to better-understand Python, OOP, convolution
-algorithms and higher-dimensional programming (eventually).
+algorithms and (eventually) higher-dimensional programming.
 """
 
 import numpy as np
@@ -26,94 +26,44 @@ class convolve(object):
         self.array = image_array
         self.kernel = kernel
 
-        self.dimA = self.dim(image_array)
-        self.dimK = self.dim(kernel)
+        self.__rangeX_ , self.__rangeY_  = image_array.shape
+        self.__rangeKX_, self.__rangeKY_ = kernel.shape
 
-        if (self.dimA < self.dimK):
-            raise IndexError("""Cannot convolve an image with
-                a higher dimensional image kernel"""\
-                .replace('                ', ''))
+        # to be returned instead of the original
+        self.__arr_ = np.zeros(image_array.shape)
+        
+        # pad array for convolution
+        self.__offsetX_ = self.__rangeKX_ // 2
+        self.__offsetY_ = self.__rangeKY_ // 2
+        
+        self.array = np.lib.pad(self.array,                          \
+                                [(self.__offsetY_, self.__offsetY_), \
+                                 (self.__offsetX_, self.__offsetX_)],\
+                                mode='constant', constant_values=0)
 
-        elif (self.dimA == self.dimK):
-            # This is the easiest route
-            self.__rangeKX_ = self.kernel.shape[0]
-            self.__rangeKY_ = self.kernel.shape[1]
-            
-            # pad array for convolution
-            self.__offsetX_ = self.__rangeKX_ // 2
-            self.__offsetY_ = self.__rangeKY_ // 2
-         
-            self.array = np.lib.pad(self.array,      \
-                [(self.__offsetX_, self.__offsetX_), \
-                 (self.__offsetY_, self.__offsetY_)],\
-                 mode='constant', constant_values=0)
-
-            self.__rangeX_ = self.array.shape[0]
-            self.__rangeY_ = self.array.shape[1]
-
-            # to be returned instead of the originals
-            self.__arr_ = np.zeros([self.__rangeX_, self.__rangeY_])
-
-        '''
-        else:
-            # Convolving an image with a kernel of lesser dimension
-            self.__rangesA_ = operalist(self.array.shape)
-            self.__rangesK_ = operalist(self.kernel.shape)
-
-            # pad array for convolution using operalists
-            self.__offsets_ = operalist(self.__rangesK_) // 2
-
-            if not (all(self.__rangesK_[i] % self.__rangesK_[0] \
-                for i in xrange(len(self.__rangesK_)))):
-                # Means the kernel is not a hypercube
-                self.__cube_ = 0
-            else:
-                self.__cube_ = 1
-                
-            self.array = np.lib.pad(self.array, )
-                
-            self.__arr_ = np.zeros(list(self.__rangesA_))
-        '''
-
-    @staticmethod
-    def dim(array):
-        """ Get the dimension of a NumPy array - this is just useful """
-        return len(array.shape)
+    ### There are 4 different spacial convolution algorithms
 
     def spaceConv2(self):
         """ normal convolution, O(N^2*n^2). This is usually too slow """
-        if (self.dimA != 2 or self.dimK != 2):
-            raise ConvolveDimError(\
-                'Use the higher dimensional analogue')
 
         # this is the O(N^2) part of this algorithm
-        for i in trange(self.__offsetX_, \
-                self.__rangeX_ - self.__rangeKX_):
-            for j in xrange(self.__offsetY_, \
-                    self.__rangeY_ - self.__rangeKY_):
+        for i in trange(self.__rangeX_):
+            for j in xrange(self.__rangeY_):
                 # Now the O(n^2) portion
                 total = 0.0
                 for k in xrange(self.__rangeKX_):
                     for t in xrange(self.__rangeKY_):
-                        total += \
-                  self.kernel[k][t] * self.array[i+k][j+t]
+                        total += self.kernel[k][t]*self.array[i+k, j+t]
 
                 # Update entry in self.__arr_, which is to be returned
                 # http://stackoverflow.com/a/38320467/3928184
-                self.__arr_[i][j] = total
+                self.__arr_[i, j] = total
 
-        return self.__arr_[self.__offsetX_\
-                           :self.__rangeX_ - self.__offsetX_,\
-                           self.__offsetY_\
-                           :self.__rangeY_ - self.__offsetY_]
+        return self.__arr_
 
     def spaceConvDot2(self):
         """ Exactly the same as the former method, just contains a 
         nested function so the dot product appears more obvious """
-
-        if (self.dimA != 2 or self.dimK != 2):
-            raise ConvolveDimError(\
-                'Use the higher dimensional analogue')
 
         def dot(ind, jnd):
             """ perform a simple 'dot product' between the 2 
@@ -123,29 +73,68 @@ class convolve(object):
             # This is the O(n^2) part of the algorithm
             for k in xrange(self.__rangeKX_):
                 for t in xrange(self.__rangeKY_):
-                    total += \
-              self.kernel[k][t] * self.array[k + ind, t + jnd]
+                    total += self.kernel[k][t]*self.array[k+ind, t+jnd]
             return total
      
         # this is the O(N^2) part of the algorithm
-        for i in trange(self.__offsetX_, \
-                self.__rangeX_ - self.__rangeKX_):
-            for j in xrange(self.__offsetY_, \
-                    self.__rangeY_ - self.__rangeKY_):
-                self.__arr_[i][j] = dot(i, j)
+        for i in trange(self.__rangeX_):
+            for j in xrange(self.__rangeY_):
+                self.__arr_[i, j] = dot(i, j)
      
-        return self.__arr_[self.__offsetX_\
-                           :self.__rangeX_ - self.__offsetX_,\
-                           self.__offsetY_\
-                           :self.__rangeY_ - self.__offsetY_]
+        return self.__arr_
+
+    ## Following are speedups using either Numba or NumPy
+
+    def spaceConvNumPy2(self):
+        # this is the O(N^2) part of the algorithm
+
+        @checkarrays
+        def dotNumPy(subarray):
+            return np.sum(self.kernel * subarray)
+
+        for i in trange(self.__rangeX_):
+            for j in xrange(self.__rangeY_):
+                self.__arr_[i, j] = dotNumPy(\
+                    self.array[i:i + self.__rangeKX_,
+                               j:j + self.__rangeKY_]
+                )
+
+        return self.__arr_
+
+    def spaceConvNumba2(self):
+        """ Exactly the same as the former method, just contains a 
+        nested function so the dot product appears more obvious """ 
+
+        @checkarrays
+        @jit
+        def dotJit(subarray, kernel):
+            """ perform a simple 'dot product' between the 2 dimensional 
+            image subsets. 
+            """
+            total = 0.0
+            # This is the O(n^2) part of the algorithm
+            for i in xrange(subarray.shape[0]):
+                for j in xrange(subarray.shape[1]):
+                    total += subarray[i][j] * kernel[i][j]
+            return total
+     
+        # this is the O(N^2) part of the algorithm
+        for i in trange(self.__rangeX_):
+            for j in xrange(self.__rangeY_):
+                # dotJit is located outside the class :P
+                self.__arr_[i, j] = dotJit(\
+                    self.array[i:i+self.__rangeKX_,
+                               j:j+self.__rangeKY_]
+                    , self.kernel
+                )
+     
+        return self.__arr_
+
+    ### End of spacial convolution algorithms
 
     @staticmethod
     def InvertKernel2(kernel):
         """ Invert a kernel for an example """
-        if (self.dim(kernel) > 2):
-            raise ConvolveDimError(\
-                'Use the higher dimensional analogue')
-
         X, Y = kernel.shape
         # thanks to http://stackoverflow.com/a/38384551/3928184!
         new_kernel = np.full_like(kernel, 0)
@@ -158,36 +147,16 @@ class convolve(object):
 
         return new_kernel
 
-    '''
-    @staticmethod
-    def InterpK(kernel, unit=1):
-        """ Interpolate a kernel a single unit smaller or larger.
-        A destructive process as the inverse won't yield the same
-        array. """
-    '''
-
-
     def FFTconv2(self):
         """ FFT convolution, not quite OAconv, but its all in NumPy """
-        if (self.dimA != 2 or self.dimK != 2):
-            raise ConvolveDimError(\
-                'Use the higher dimensional analogue')
-
+        # just overwrite this array since it's already allocate
         self.__arr_ = irFFT(rFFT(self.array) * rFFT(self.kernel, \
                                          self.array.shape))
 
-        return self.__arr_[self.__offsetX_\
-                           :self.__rangeX_ - self.__offsetX_,\
-                           self.__offsetY_\
-                           :self.__rangeY_ - self.__offsetY_]
+        return self.__arr_
 
     def OAconv2(self):
         """ faster convolution algorithm, O(N^2*log(n)). """
-
-        if (self.dim(self.kernel) % 2):
-            self.InterpK(self.kernel, unit=1)
-        
-
         # solve for the total padding along each axis
         diffX = (self.__rangeKX_ - self.__rangeX_ +  \
                  self.__rangeKX_ * (self.__rangeX_ //\
@@ -229,9 +198,9 @@ class convolve(object):
         padX = self.__rangeKX_ // 2
         padY = self.__rangeKY_ // 2
 
-        self.__arr_ = np.lib.pad(self.__arr_,              \
-                            ((left + padX, right + padX),  \
-                             (top + padY, bottom + padY)), \
+        self.__arr_ = np.lib.pad(self.__arr_,             \
+                            ((left + padX, right + padX), \
+                             (top + padY, bottom + padY)),\
                            mode='constant', constant_values=0)
 
         kernel = np.pad(self.kernel,                  \
@@ -271,15 +240,36 @@ class convolve(object):
                         tup[2]:tup[3] + 2 * padY] += space
 
         # crop image and get it back, convolved
-        return self.__arr_[self.__offsetX_ + padX + left   \
-                           :padX + left + self.__rangeX_   \
-                              - self.__offsetX_,           \
-                           self.__offsetY_ + padY + bottom \
-                           :padY + bottom + self.__rangeY_ \
-                              - self.__offsetY_]
+        return self.__arr_[padX + left:padX + left + self.__rangeX_,
+                           padY + bottom:padY + bottom + self.__rangeY_]
+
+def checkarrays(f):
+    """ Similar to the @accepts decorator """
+    def new_f(*args, **kwd):
+        assert reduce(lambda x, y: x == y, map(np.shape, args))\
+        , """Array and Subarray must have same dimensions,
+          got %s and %s"""\
+          .replace('          ', '') % (args[0].shape, args[1].shape,)
+        return f(*args, **kwd)
+    return new_f
+
+'''
+@checkarrays
+@jit
+def dotJit(subarray, kernel):
+    """ perform a simple 'dot product' between the 2 dimensional 
+    image subsets. 
+    """
+    total = 0.0
+    # This is the O(n^2) part of the algorithm
+    for i in xrange(subarray.shape[0]):
+        for j in xrange(subarray.shape[1]):
+            total += subarray[i][j] * kernel[i][j]
+    return total
 
 class ConvolveTypeError(Exception):
     pass
 
 class ConvolveDimError(Exception):
     pass
+'''
