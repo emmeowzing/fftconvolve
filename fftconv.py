@@ -16,9 +16,6 @@ from numba import jit
 from multiprocessing.dummy import Pool as ThreadPool
 from psutil import cpu_count
 
-import sys
-from time import time
-
 
 __author__ = "Brandon Doyle"
 __email__ = "bjd2385@aperiodicity.com"
