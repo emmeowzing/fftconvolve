@@ -37,10 +37,12 @@ class convolve(object):
         self.__offsetX_ = self.__rangeKX_ // 2
         self.__offsetY_ = self.__rangeKY_ // 2
         
-        self.array = np.lib.pad(self.array,                          \
-                                [(self.__offsetY_, self.__offsetY_), \
-                                 (self.__offsetX_, self.__offsetX_)],\
-                                mode='constant', constant_values=0)
+        self.array = np.lib.pad(self.array
+            , [(self.__offsetY_, self.__offsetY_),
+               (self.__offsetX_, self.__offsetX_)]
+            , mode='constant'
+            , constant_values=0
+        )
 
     ### There are 4 different spacial convolution algorithms
 
@@ -388,9 +390,9 @@ class convolve(object):
         # crop image and get it back, convolved
         return self.__arr_[
             padX+left+self.__offsetX_
-            :padX+left+self.__offsetX_+self.__rangeX_,
+           :padX+left+self.__offsetX_+self.__rangeX_,
             padY+bottom+self.__offsetY_
-            :padY+bottom+self.__offsetY_+self.__rangeY_
+           :padY+bottom+self.__offsetY_+self.__rangeY_
         ]
 
     '''
