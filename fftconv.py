@@ -13,8 +13,10 @@ from numpy.fft import fft2 as FFT, ifft2 as iFFT
 from numpy.fft import rfft2 as rFFT, irfft2 as irFFT
 from numpy.fft import fftn as FFTN, ifftn as iFFTN
 from numba import jit
-from multiprocessing.dummy import Pool as ThreadPool
+#from multiprocessing import Pool as ThreadPool
+from pathos.multiprocessing import ProcessPool
 from psutil import cpu_count
+from operator import sub
 
 
 __author__ = "Brandon Doyle"
@@ -136,58 +138,68 @@ class convolve(object):
     def spaceConvNumbaThreadedOuter2(self):
         """ `Block` threading example """
 
-        def partitioner(shape, n_cores):
-            """ Partition an array for multithreading as evenly as possible
-            """
-            if (n_cores == 1):    # 0 < n_cores < 2
-                return shape, n_cores
-            elif (n_cores < 1):
+        def divider(arr_dims, coreNum=1):
+            """ Get a bunch of iterable ranges; 
+            Example input: [[[0, 24], [15, 25]]]"""
+            if (coreNum == 1):
+                return arr_dims
+
+            elif (coreNum < 1):
                 raise ValueError(\
-            'partitioner expected a positive number of cores, got %d'\
-                    % n_cores
+              'partitioner expected a positive number of cores, got %d'\
+                            % coreNum
                 )
-            elif (n_cores % 2):
+
+            elif (coreNum % 2):
                 raise ValueError(\
-               'partitioner expected an even number of cores, got %d'\
-                    % n_cores
+              'partitioner expected an even number of cores, got %d'\
+                            % coreNum
                 )
+            
+            total = []
 
-            # partitioning on the larger of the two dirs if n_cores is 
-            # > shape to maximize the number of threads that can be used
-            if ((n_cores, n_cores) > tuple(shape)):
-                n_cores = max(shape)
-                axis = shape.index(n_cores)
-            else:
-                # just partition vertically (could be either axis, really)
-                axis = 0
+            # Split each coordinate in arr_dims in _half_
+            for arr_dim in arr_dims:
+                dY = arr_dim[0][1] - arr_dim[0][0]
+                dX = arr_dim[1][1] - arr_dim[1][0]
+                
+                if ((coreNum,)*2 > (dY, dX)):
+                    coreNum = max(dY, dX)
+                    coreNum -= 1 if (coreNum % 2 and coreNum > 1) else 0
 
-            step = 1.0 / n_cores
-            partition = []
-            for i in xrange(1, n_cores + 1):
-                partition.append(int(i * step * shape[axis]))
+                new_c1, new_c2, = [], []
 
-            if (axis == 0):
-                result = zip(partition,\
-                    [shape[(axis + 1) % 2]]*len(partition)
-                )
-            elif (axis == 1):
-                result = zip([shape[(axis + 1) % 2]]*len(partition),\
-                    partition
-                )
+                if (dY >= dX):
+                    # Subimage height is greater than its width
+                    half = dY // 2
+                    new_c1.append([arr_dim[0][0], arr_dim[0][0] + half])
+                    new_c1.append(arr_dim[1])
+                    
+                    new_c2.append([arr_dim[0][0] + half, arr_dim[0][1]])
+                    new_c2.append(arr_dim[1])
 
-            result.append((0, 0))
-            result = sorted(result)
-            new_result = []
-            for i in xrange(len(result) - 1):
-                if not (i):
-                    new_result.append((result[i], result[i+1])) 
                 else:
-                    new_result.append(
-                        ((result[i][0], result[i-1][0]),
-                        (result[i+1]))
-                    )
+                    # Subimage width is greater than its height
+                    half = dX // 2
+                    new_c1.append(arr_dim[0])
+                    new_c1.append([arr_dim[1][0], half])
 
-            return sorted(new_result), n_cores
+                    new_c2.append(arr_dim[0])
+                    new_c2.append([arr_dim[1][0] + half, arr_dim[1][1]])
+
+                total.append(new_c1), total.append(new_c2)
+
+            # If the number of cores is 1, we get back the total; Else,
+            # we split each in total, etc.; it's turtles all the way down
+            return divider(total, coreNum // 2)
+
+        def numer(start, finish):
+            count = start
+            iteration = 0
+            while count < finish:
+                yield iteration, count
+                iteration += 1
+                count += 1
 
         @checkarrays
         @jit
@@ -199,26 +211,39 @@ class convolve(object):
             return total
 
         def outer(subset):
-            for i in xrange(subset[0][0], subset[1][0]):
-                for j in xrange(subset[0][1], subset[1][1]):
-                    self.__arr_[i, j] = dotJit(\
+            a, b, = subset
+            ai, bi, = map(sub, *reversed(zip(*subset)))
+            temp = np.zeros((ai, bi))
+
+            for ind, i in numer(*a):
+                for jnd, j in numer(*b):
+                    temp[ind, jnd] = dotJit(\
                         self.array[i:i+self.__rangeKX_,
                                    j:j+self.__rangeKY_]
                         , self.kernel
                     )
+            
+            return temp, a, b
 
+        # ProcessPool auto-detects processors, but my function above
+        # only accepts an even number; I'm still working on it.
+        # Otherwise I wouldn't mess with cpu_count()
         cores = cpu_count()
         cores -= 1 if (cores % 2 == 1 and cores > 1) else 0
 
         # Get partitioning indices and the usable number of cores
-        shape = [self.__rangeX_, self.__rangeY_]
-        partitions, usable_cores = partitioner(shape, cores)
+        shape = [[[0, self.__rangeX_ - 1], [0, self.__rangeY_ - 1]]]
+        partitions = divider(shape, cores)
         
-        # Map partitions to threads; works in-place, no return
-        pool = ThreadPool(usable_cores)
-        pool.map(outer, partitions)
-        pool.close()
-        pool.join()
+        # Map partitions to threads and process
+        pool = ProcessPool(nodes=cores)
+        results = pool.map(outer, partitions)
+        #pool.close()
+        #pool.join()
+        
+        for ind, res in enumerate(results):
+            X, Y, = results[ind][1:]
+            self.__arr_[slice(*X), slice(*Y)] += results[ind][0]
 
         return self.__arr_
 
