@@ -1,2 +1,2 @@
 # fftconvolve
-An implementation of various convolution algorithms in Python
+An implementation of the Overlap and Add convolution algorithm in Python 3.
