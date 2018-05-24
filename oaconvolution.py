@@ -4,8 +4,7 @@
 """ A simple implementation of OaA convolution """
 
 from PIL import Image
-from typing import Union, Tuple
-from types import FunctionType as Function
+from typing import Union, Tuple, Callable as Function
 from functools import wraps
 from glob import iglob
 from scipy.integrate import dblquad
